@@ -10,8 +10,79 @@ datasource db {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  name         String
-  password     String?  
+  firstName    String
+  lastName     String
+  displayName  String
+  passwordHash String?
+  passwordSalt String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  sessions         Session[]
+  oauthAccounts    UserOAuthAccount[]
+  allowedProviders UserAllowedProvider[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  expiresAt  DateTime
+  userAgent  String?
+  ipAddress  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, expiresAt])
+}
+
+model UserOAuthAccount {
+  id             String        @id @default(cuid())
+  userId         String
+  provider       OAuthProvider
+  providerUserId String // OIDC sub or OAuth /me id
+  tenantId       String?
+  issuer         String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+@@index([provider, issuer])
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@index([provider, tenantId])
+}
+
+model UserAllowedProvider {
+  id        String        @id @default(cuid())
+  userId    String
+  provider  OAuthProvider
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([provider])
+}
+
+enum OAuthProvider {
+  MICROSOFT
+  GOOGLE
+}
+
+model IdentityProviderTenant {
+  id          String        @id @default(cuid())
+  provider    OAuthProvider
+  tenantId    String
+  displayName String
+  enabled     Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([provider, tenantId])
+  @@index([provider])
 }
